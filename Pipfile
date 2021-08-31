@@ -6,8 +6,10 @@ name = "pypi"
 [packages]
 python-env = ">=1.0.0"
 pyTelegramBotAPI = ">=3.8.3"
+loguru = "*"
 
 [dev-packages]
+pylint = "*"
 
 [requires]
 python_version = "3.8"
