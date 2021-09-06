@@ -114,9 +114,9 @@ def show_hotels(req_params: REQ_PARAMS_TYPE, chat_id: int) -> None:
         search_results = requester.request_by_price(sort_order=req_params['sort_order'],
                                                     city=req_params['city'],
                                                     count=req_params['results_count'])
-    except requests.RequestException as e:
+    except (requests.ConnectionError, requests.Timeout) as e:
         logger.error(f'Ошибка при поисковом запросе отелей: {e}')
-        bot.send_message(chat_id, 'Произошла ошибка при попытке выполнить запрос.\n'
+        bot.send_message(chat_id, 'Произошла ошибка при соединении с Hotels.com\n'
                                   'Попробуй еще раз.')
         return
     else:
@@ -182,7 +182,7 @@ def build_messages(response: dict,
             try:
                 logger.info('Отправка запроса фотографий')
                 photo_results = requester.request_photos(elem['id'])
-            except requests.RequestException as e:
+            except (requests.ConnectionError, requests.Timeout) as e:
                 logger.error(f'Ошибка при запросе фотографий: {e}')
                 continue
             else:

@@ -4,8 +4,8 @@ from typing import Optional, Dict, List, Any
 import requests
 from loguru import logger
 
-from .exceptions import UndefinedLocale
 from utils.locale_from_string import locale_from_string
+from .exceptions import UndefinedLocale
 
 
 class HotelsRequester:
