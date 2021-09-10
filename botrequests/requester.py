@@ -1,5 +1,5 @@
 from datetime import date, timedelta
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List, Any, Union
 
 import requests
 from loguru import logger
@@ -15,6 +15,25 @@ class HotelsRequester:
 
     def __init__(self, api_key: str):
         self.__api_key = api_key
+
+    def make_request(self,
+                     url: str,
+                     params: Dict[str, Any]) -> requests.Response:
+        """
+        Отправить get-запрос к Hotels.com
+
+        :param url: целевой URL-адрес
+        :param params: параметры запроса
+        :return: ответ сервера
+        """
+
+        headers = {
+            'x-rapidapi-host': 'hotels4.p.rapidapi.com',
+            'x-rapidapi-key': self.__api_key
+        }
+
+        response = requests.get(url, headers=headers, params=params)
+        return response
 
     def request_by_price(self,
                          sort_order: str,
@@ -39,34 +58,30 @@ class HotelsRequester:
         if sort_order not in ('low', 'high'):
             raise ValueError('invalid value, "low" or "high" is expected')
 
-        sort_order = 'PRICE' if sort_order == 'low' else 'HIGH_PRICE'
+        sort_order = 'PRICE' if sort_order == 'low' else 'PRICE_HIGHEST_FIRST'
         destination_id = self.__search_destination(city_name=city)
         check_in = date.today()
         check_out = check_in + timedelta(days=1)
 
-        url = "https://hotels4.p.rapidapi.com/properties/list"
-        querystring = {"destinationId": destination_id,
-                       "sortOrder": sort_order,
-                       "pageSize": count,
-                       "checkIn": check_in.strftime('%Y-%m-%d'),
-                       "checkOut": check_out.strftime('%Y-%m-%d'),
-                       "pageNumber": "1",
-                       "adults1": "1",
-                       "locale": "ru_RU",
-                       "currency": "RUB"}
-        headers = {
-            'x-rapidapi-host': "hotels4.p.rapidapi.com",
-            'x-rapidapi-key': self.__api_key
-        }
+        url = 'https://hotels4.p.rapidapi.com/properties/list'
+        query_params = {'destinationId': destination_id,
+                        'sortOrder': sort_order,
+                        'pageSize': count,
+                        'checkIn': check_in.strftime('%Y-%m-%d'),
+                        'checkOut': check_out.strftime('%Y-%m-%d'),
+                        'pageNumber': '1',
+                        'adults1': '1',
+                        'locale': 'ru_RU',
+                        'currency': 'RUB'}
 
         try:
-            response = requests.get(url, headers=headers, params=querystring).json()
+            response = self.make_request(url, query_params).json()
         except requests.RequestException as e:
             logger.error(f'Ошибка при отправке запроса: {e}')
             raise
         return response['data']['body']['searchResults']['results']
 
-    def request_photos(self, hotel_id: int) -> List[str]:
+    def request_photos(self, hotel_id: Union[str, int]) -> List[str]:
         """
         Запросить фотографии отеля
 
@@ -74,14 +89,11 @@ class HotelsRequester:
         :return: список ссылок на изображения
         """
 
-        url = "https://hotels4.p.rapidapi.com/properties/get-hotel-photos"
-        querystring = {"id": hotel_id}
-        headers = {
-            'x-rapidapi-host': "hotels4.p.rapidapi.com",
-            'x-rapidapi-key': self.__api_key
-        }
+        url = 'https://hotels4.p.rapidapi.com/properties/get-hotel-photos'
+        query_params = {'id': hotel_id}
+
         try:
-            response = requests.get(url, headers=headers, params=querystring).json()
+            response = self.make_request(url, query_params).json()
         except requests.RequestException as e:
             logger.error(f'Ошибка во время запроса фотографий: {e}')
             raise
@@ -111,15 +123,11 @@ class HotelsRequester:
         if not locale:
             raise UndefinedLocale('failed to determine locale')
 
-        url = "https://hotels4.p.rapidapi.com/locations/search"
-        querystring = {"query": city_name, "locale": locale}
-        headers = {
-            'x-rapidapi-host': "hotels4.p.rapidapi.com",
-            'x-rapidapi-key': self.__api_key
-        }
+        url = 'https://hotels4.p.rapidapi.com/locations/search'
+        query_params = {'query': city_name, 'locale': locale}
 
         try:
-            response = requests.get(url, headers=headers, params=querystring).json()
+            response = self.make_request(url, query_params).json()
         except Exception as e:
             logger.error(f'Ошибка во время запроса destination_id: {e}')
             raise
