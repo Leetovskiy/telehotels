@@ -76,7 +76,7 @@ class HotelsRequester:
 
     def request_by_price(self,
                          sort_order: str,
-                         city: str,
+                         destination_id: str,
                          count: int, ) -> List[Dict[str, Any]]:
         """
         Запросить отели города с сортировкой по цене
@@ -84,7 +84,7 @@ class HotelsRequester:
         :param sort_order: задает в каком порядке произойдет сортировка:
             'low' – от меньшего к большему;
             'high' – от большего к меньшему.
-        :param city: город, в котором будет произведен поиск
+        :param destination_id: destinationId города
         :param count: максимальное количество отелей, которые нужно
             получить
         :return: результаты поиска в виде списка словарей
@@ -96,7 +96,6 @@ class HotelsRequester:
             raise ValueError('invalid value, "low" or "high" is expected')
 
         sort_order = 'PRICE' if sort_order == 'low' else 'PRICE_HIGHEST_FIRST'
-        destination_id = self.__search_destination(city_name=city)
         check_in = date.today()
         check_out = check_in + timedelta(days=1)
 
@@ -145,7 +144,7 @@ class HotelsRequester:
 
         return result
 
-    def __search_destination(self, city_name: str) -> Optional[str]:
+    def search_destination(self, city_name: str) -> Optional[str]:
         """
         Поиск местоположения в Hotels API по названию города
 

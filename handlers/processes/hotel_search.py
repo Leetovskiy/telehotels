@@ -27,10 +27,20 @@ def ask_city_step(msg: Message, params: REQ_PARAMS_TYPE) -> None:
     logger.info(f'Запрос города ({user.username} – {user.id}), ответ: {reply}')
 
     if utils.locale_from_string(reply) is None:
-        text = 'Некорректный ввод: не получилось определить язык сообщения.'
+        text = 'Некорректный ввод: не получилось определить язык сообщения.\n' \
+               'Попробуй еще раз'
         error_message = bot.send_message(chat_id, text)
         bot.register_next_step_handler(error_message, ask_city_step, params)
-    params['city'] = msg.text
+        return
+
+    destination_id = requester.search_destination(reply)
+    if destination_id is None:
+        text = 'Некорректный ввод: не удалось найти город по твоему запросу.\n' \
+               'Попробуй еще раз'
+        error_message = bot.send_message(chat_id, text)
+        bot.register_next_step_handler(error_message, ask_city_step, params)
+        return
+    params['destination_id'] = destination_id
 
     text = 'Я могу вывести до 5-ти отелей. Сколько ты хочешь увидеть?'
     sent_message = bot.send_message(chat_id, text)
@@ -112,7 +122,7 @@ def show_hotels(req_params: REQ_PARAMS_TYPE, chat_id: int) -> None:
     try:
         logger.info('Отправка поискового запроса отеля')
         search_results = requester.request_by_price(sort_order=req_params['sort_order'],
-                                                    city=req_params['city'],
+                                                    destination_id=req_params['destination_id'],
                                                     count=req_params['results_count'])
     except (requests.ConnectionError, requests.Timeout) as e:
         logger.error(f'Ошибка при поисковом запросе отелей: {e}')
