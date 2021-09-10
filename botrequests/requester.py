@@ -34,6 +34,45 @@ class HotelsRequester:
 
         response = requests.get(url, headers=headers, params=params)
         return response
+    
+    def request_bestdeal(self,
+                         destination_id: str,
+                         count: int,
+                         min_price: int,
+                         max_price: int) -> List[Dict[str, Any]]:
+        """
+        Запросить ближайшие к центру отели в определенном диапазоне цен
+
+        :param destination_id: destinationId города
+        :param count: количество отелей в результате
+        :param min_price: мин. значение диапазона
+        :param max_price: макс. значение диапазона
+        :return: результаты поиска в виде списка словарей
+        """
+
+        landmark_id = destination_id
+        check_in = date.today()
+        check_out = check_in + timedelta(days=1)
+
+        url = 'https://hotels4.p.rapidapi.com/properties/list'
+        query_params = {'destinationId': destination_id,
+                        'pageNumber': '1',
+                        'pageSize': count,
+                        'checkIn': check_in,
+                        'checkOut': check_out,
+                        'adults1': '1',
+                        'sortOrder': 'DISTANCE_FROM_LANDMARK',
+                        'landmarkIds': landmark_id,
+                        'priceMin': min_price,
+                        'priceMax': max_price,
+                        'locale': 'ru_RU'}
+
+        try:
+            response = self.make_request(url, query_params).json()
+        except (requests.ConnectionError, requests.Timeout) as e:
+            logger.error(f'Ошибка при отправке запроса (bestdeal): {e}')
+            raise
+        return response['data']['body']['searchResults']['results']
 
     def request_by_price(self,
                          sort_order: str,
@@ -42,15 +81,13 @@ class HotelsRequester:
         """
         Запросить отели города с сортировкой по цене
 
-        Возвращает результаты поиска, содержащие информацию об отелях в
-        виде списка словарей
-
         :param sort_order: задает в каком порядке произойдет сортировка:
             'low' – от меньшего к большему;
             'high' – от большего к меньшему.
         :param city: город, в котором будет произведен поиск
         :param count: максимальное количество отелей, которые нужно
             получить
+        :return: результаты поиска в виде списка словарей
         :except ValueError: выбрасывается, если переданы некорректные
             значения параметров
         """
@@ -77,7 +114,7 @@ class HotelsRequester:
         try:
             response = self.make_request(url, query_params).json()
         except requests.RequestException as e:
-            logger.error(f'Ошибка при отправке запроса: {e}')
+            logger.error(f'Ошибка при отправке запроса (by_price): {e}')
             raise
         return response['data']['body']['searchResults']['results']
 
@@ -129,7 +166,7 @@ class HotelsRequester:
         try:
             response = self.make_request(url, query_params).json()
         except Exception as e:
-            logger.error(f'Ошибка во время запроса destination_id: {e}')
+            logger.error(f'Ошибка во время запроса destinationId: {e}')
             raise
         try:
             return response['suggestions'][0]['entities'][0]['destinationId']
