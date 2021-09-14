@@ -33,12 +33,20 @@ def ask_city_step(msg: Message, params: REQ_PARAMS_TYPE) -> None:
         bot.register_next_step_handler(error_message, ask_city_step, params)
         return
 
-    destination_id = requester.search_destination(reply)
-    if destination_id is None:
-        text = 'Некорректный ввод: не удалось найти город по твоему запросу.\n' \
+    try:
+        destination_id = requester.search_destination(reply)
+    except (requests.ConnectionError, requests.Timeout) as e:
+        text = 'Ошибка: неудачная попытка соединения во время поиска города.\n' \
                'Попробуй еще раз'
         error_message = bot.send_message(chat_id, text)
-        bot.register_next_step_handler(error_message, ask_city_step, params)
+        bot.register_next_step_handler(error_message, ask_city_step)
+        return
+
+    if destination_id is None:
+        text = 'Некорректный ввод: не удалось найти город по твоему запросу.\n' \
+               'Попробуй набрать что-то другое'
+        error_message = bot.send_message(chat_id, text)
+        bot.register_next_step_handler(error_message, ask_city_step)
         return
     params['destination_id'] = destination_id
 
