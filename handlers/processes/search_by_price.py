@@ -40,6 +40,7 @@ def ask_city_step(msg: Message, params: REQ_PARAMS_TYPE) -> None:
                'Попробуй еще раз'
         error_message = bot.send_message(chat_id, text)
         bot.register_next_step_handler(error_message, ask_city_step)
+        logger.error(f'Ошибка при запросе destinationId: {e}')
         return
 
     if destination_id is None:

@@ -38,6 +38,7 @@ def ask_city_step(msg: Message) -> None:
                'Попробуй еще раз'
         error_message = bot.send_message(chat_id, text)
         bot.register_next_step_handler(error_message, ask_city_step)
+        logger.error(f'Ошибка при запросе destinationId: {e}')
         return
 
     if destination_id is None:
@@ -70,9 +71,9 @@ def ask_price_range_step(msg: Message, params: REQ_PARAMS_TYPE) -> None:
     user = msg.from_user
     logger.info(f'Запрос диапазона цен ({user.username} – {user.id}), ответ: {reply}')
 
-    if not re.fullmatch(r'\d+-\d+', reply):
+    if not re.fullmatch(r'^\d+-\d+$', reply):
         text = 'Ошибка: некорректный ввод диапазона цен.\n' \
-               'Диапазон должен быть в формате: "мин_-макс_".\n' \
+               'Диапазон должен быть в формате: "мин-макс".\n' \
                'Например: 300-1200'
         error_message = bot.send_message(chat_id, text)
         bot.register_next_step_handler(error_message, ask_price_range_step, params)
@@ -97,4 +98,43 @@ def ask_price_range_step(msg: Message, params: REQ_PARAMS_TYPE) -> None:
 
 
 def ask_distance_range_step(msg: Message, params: REQ_PARAMS_TYPE) -> None:
+    """
+    Запросить диапазон отдаленности отеля от центра
+
+    :param msg: обрабатываемое сообщение
+    :param params: параметры запроса
+    """
+
+    chat_id = msg.chat.id
+    reply = msg.text
+
+    user = msg.from_user
+    logger.info(f'Запрос диапазона расстояния от центра ({user.username} – {user.id}), ответ: {reply}')
+
+    if not re.fullmatch(r'^\d+\.*\d*-\d+\.*\d*$', reply):
+        text = 'Ошибка: некорректный ввод.\n' \
+               'Диапазон должен быть в формате: мин-макс.\n' \
+               'Например: 0.5-3.0'
+        error_message = bot.send_message(chat_id, text)
+        bot.register_next_step_handler(error_message, ask_distance_range_step, params)
+        return
+
+    min_dist, max_dist = map(float, re.findall(r'\d+\.*\d*', reply))
+    if not (0 < min_dist < max_dist):
+        text = 'Ошибка: некорректный ввод диапазона.\n' \
+               'Минимальное значение должно быть меньше максимального,' \
+               'все значения должны быть больше нуля'
+        error_message = bot.send_message(chat_id, text)
+        bot.register_next_step_handler(error_message, ask_price_range_step, params)
+        return
+
+    params['min_dist'] = min_dist
+    params['max_dist'] = max_dist
+
+    text = 'Я могу вывести до 5-ти отелей. Сколько ты хочешь увидеть?'
+    sent_message = bot.send_message(chat_id, text)
+    bot.register_next_step_handler(sent_message, ask_count_step, params)
+
+
+def ask_count_step(msg: Message, params: REQ_PARAMS_TYPE) -> None:
     pass
