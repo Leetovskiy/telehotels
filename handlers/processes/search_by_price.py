@@ -1,4 +1,3 @@
-from random import sample as random_sample
 from typing import Dict, Union, Optional, List
 
 import requests
@@ -139,9 +138,9 @@ def show_hotels(req_params: REQ_PARAMS_TYPE, chat_id: int) -> None:
                                   'Попробуй еще раз.')
         return
     else:
+        bot.delete_message(chat_id, status_message.id)
         logger.info('Запрос успешно выполнен')
     messages = build_messages(search_results, req_params['photos_count'])
-    bot.delete_message(chat_id, status_message.id)
 
     for message in messages:
         try:
@@ -208,7 +207,7 @@ def build_messages(response: dict,
                 logger.info('Запрос успешно выполнен')
 
             if len(photo_results) > photos_count:
-                photo_results = random_sample(photo_results, photos_count)
+                photo_results = photo_results[:photos_count]
 
             photos = [InputMediaPhoto(media=link, caption=name)
                       for link in photo_results]
