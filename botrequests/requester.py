@@ -65,7 +65,8 @@ class HotelsRequester:
                         'landmarkIds': landmark_id,
                         'priceMin': min_price,
                         'priceMax': max_price,
-                        'locale': 'ru_RU'}
+                        'locale': 'ru_RU',
+                        'currency': 'RUB'}
 
         try:
             response = self.make_request(url, query_params).json()
