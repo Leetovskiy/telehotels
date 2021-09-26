@@ -3,6 +3,7 @@ from typing import Dict, Union, Optional, List
 import requests
 from loguru import logger
 from telebot.types import Message, InputMediaPhoto
+from telebot.apihelper import ApiException
 
 import utils
 from loader import bot
@@ -148,12 +149,13 @@ def show_hotels(req_params: REQ_PARAMS_TYPE, chat_id: int) -> None:
             if message['photos'] is not None:
                 bot.send_media_group(chat_id=chat_id, media=message['photos'])
             bot.send_message(chat_id=chat_id, text=message['text'], disable_web_page_preview=True)
-            bot.delete_message(chat_id, status_message.id)
-        except requests.RequestException as e:
+        except ApiException as e:
             bot.send_message(chat_id, 'Ошибка при отправке сообщения…')
-            logger.error(f'Не удалось отправить сообщение (chat: {chat_id})')
+            logger.error(f'Не удалось отправить сообщение (chat: {chat_id}): {e}')
         else:
             logger.info(f'Сообщение с результатами поиска успешно отправлено (chat: {chat_id})')
+        finally:
+            bot.delete_message(chat_id, status_message.id)
 
 
 def build_messages(response: dict,
