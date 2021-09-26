@@ -137,4 +137,37 @@ def ask_distance_range_step(msg: Message, params: REQ_PARAMS_TYPE) -> None:
 
 
 def ask_count_step(msg: Message, params: REQ_PARAMS_TYPE) -> None:
+    """
+    Запросить количество отелей для поиска
+
+    :param msg: обрабатываемое сообщение
+    :param params: параметры, которые будут переданы в функцию запроса
+    """
+
+    chat_id = msg.chat.id
+    reply = msg.text
+
+    user = msg.from_user
+    logger.info(f'Запрос количества отелей ({user.username} – {user.id}), ответ: {reply}')
+
+    try:
+        params['results_count'] = int(reply)
+    except ValueError:
+        text = 'Некорректный ввод: требуется число.'
+        error_message = bot.send_message(chat_id, text)
+        bot.register_next_step_handler(error_message, ask_count_step, params)
+        return
+    if not 0 < params['results_count'] <= 5:
+        text = 'Некорректный ввод: число должно быть в диапазоне от 1 до 5 включительно.'
+        error_message = bot.send_message(chat_id, text)
+        bot.register_next_step_handler(error_message, ask_count_step, params)
+        return
+
+    text = 'Из фотографий я могу показать 10 штук. Сколько ты хочешь увидеть?\n' \
+           'Если фото не нужны, то просто отправь <code>0</code>'
+    sent_message = bot.send_message(chat_id, text)
+    bot.register_next_step_handler(sent_message, ask_photos_step, params)
+
+
+def ask_photos_step(msg: Message, params: REQ_PARAMS_TYPE) -> None:
     pass
