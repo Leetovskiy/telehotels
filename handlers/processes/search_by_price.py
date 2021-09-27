@@ -1,9 +1,9 @@
-from random import sample as random_sample
 from typing import Dict, Union, Optional, List
 
 import requests
 from loguru import logger
 from telebot.types import Message, InputMediaPhoto
+from telebot.apihelper import ApiException
 
 import utils
 from loader import bot
@@ -27,10 +27,29 @@ def ask_city_step(msg: Message, params: REQ_PARAMS_TYPE) -> None:
     logger.info(f'Запрос города ({user.username} – {user.id}), ответ: {reply}')
 
     if utils.locale_from_string(reply) is None:
-        text = 'Некорректный ввод: не получилось определить язык сообщения.'
+        text = 'Некорректный ввод: не получилось определить язык сообщения.\n' \
+               'Попробуй еще раз'
         error_message = bot.send_message(chat_id, text)
         bot.register_next_step_handler(error_message, ask_city_step, params)
-    params['city'] = msg.text
+        return
+
+    try:
+        destination_id = requester.search_destination(reply)
+    except (requests.ConnectionError, requests.Timeout) as e:
+        text = 'Ошибка: неудачная попытка соединения во время поиска города.\n' \
+               'Попробуй еще раз'
+        error_message = bot.send_message(chat_id, text)
+        bot.register_next_step_handler(error_message, ask_city_step)
+        logger.error(f'Ошибка при запросе destinationId: {e}')
+        return
+
+    if destination_id is None:
+        text = 'Некорректный ввод: не удалось найти город по твоему запросу.\n' \
+               'Попробуй набрать что-то другое'
+        error_message = bot.send_message(chat_id, text)
+        bot.register_next_step_handler(error_message, ask_city_step)
+        return
+    params['destination_id'] = destination_id
 
     text = 'Я могу вывести до 5-ти отелей. Сколько ты хочешь увидеть?'
     sent_message = bot.send_message(chat_id, text)
@@ -112,7 +131,7 @@ def show_hotels(req_params: REQ_PARAMS_TYPE, chat_id: int) -> None:
     try:
         logger.info('Отправка поискового запроса отеля')
         search_results = requester.request_by_price(sort_order=req_params['sort_order'],
-                                                    city=req_params['city'],
+                                                    destination_id=req_params['destination_id'],
                                                     count=req_params['results_count'])
     except (requests.ConnectionError, requests.Timeout) as e:
         logger.error(f'Ошибка при поисковом запросе отелей: {e}')
@@ -120,9 +139,9 @@ def show_hotels(req_params: REQ_PARAMS_TYPE, chat_id: int) -> None:
                                   'Попробуй еще раз.')
         return
     else:
+        bot.delete_message(chat_id, status_message.id)
         logger.info('Запрос успешно выполнен')
     messages = build_messages(search_results, req_params['photos_count'])
-    bot.delete_message(chat_id, status_message.id)
 
     for message in messages:
         try:
@@ -130,12 +149,13 @@ def show_hotels(req_params: REQ_PARAMS_TYPE, chat_id: int) -> None:
             if message['photos'] is not None:
                 bot.send_media_group(chat_id=chat_id, media=message['photos'])
             bot.send_message(chat_id=chat_id, text=message['text'], disable_web_page_preview=True)
-            bot.delete_message(chat_id, status_message.id)
-        except requests.RequestException as e:
+        except ApiException as e:
             bot.send_message(chat_id, 'Ошибка при отправке сообщения…')
-            logger.error(f'Не удалось отправить сообщение (chat: {chat_id})')
+            logger.error(f'Не удалось отправить сообщение (chat: {chat_id}): {e}')
         else:
             logger.info(f'Сообщение с результатами поиска успешно отправлено (chat: {chat_id})')
+        finally:
+            bot.delete_message(chat_id, status_message.id)
 
 
 def build_messages(response: dict,
@@ -189,7 +209,7 @@ def build_messages(response: dict,
                 logger.info('Запрос успешно выполнен')
 
             if len(photo_results) > photos_count:
-                photo_results = random_sample(photo_results, photos_count)
+                photo_results = photo_results[:photos_count]
 
             photos = [InputMediaPhoto(media=link, caption=name)
                       for link in photo_results]

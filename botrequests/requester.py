@@ -1,5 +1,5 @@
 from datetime import date, timedelta
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List, Any, Union
 
 import requests
 from loguru import logger
@@ -16,22 +16,79 @@ class HotelsRequester:
     def __init__(self, api_key: str):
         self.__api_key = api_key
 
+    def make_request(self,
+                     url: str,
+                     params: Dict[str, Any]) -> requests.Response:
+        """
+        Отправить get-запрос к Hotels.com
+
+        :param url: целевой URL-адрес
+        :param params: параметры запроса
+        :return: ответ сервера
+        """
+
+        headers = {
+            'x-rapidapi-host': 'hotels4.p.rapidapi.com',
+            'x-rapidapi-key': self.__api_key
+        }
+
+        response = requests.get(url, headers=headers, params=params)
+        return response
+    
+    def request_bestdeal(self,
+                         destination_id: str,
+                         count: int,
+                         min_price: int,
+                         max_price: int) -> List[Dict[str, Any]]:
+        """
+        Запросить ближайшие к центру отели в определенном диапазоне цен
+
+        :param destination_id: destinationId города
+        :param count: количество отелей в результате
+        :param min_price: мин. значение диапазона
+        :param max_price: макс. значение диапазона
+        :return: результаты поиска в виде списка словарей
+        """
+
+        landmark_id = destination_id
+        check_in = date.today()
+        check_out = check_in + timedelta(days=1)
+
+        url = 'https://hotels4.p.rapidapi.com/properties/list'
+        query_params = {'destinationId': destination_id,
+                        'pageNumber': '1',
+                        'pageSize': count,
+                        'checkIn': check_in,
+                        'checkOut': check_out,
+                        'adults1': '1',
+                        'sortOrder': 'DISTANCE_FROM_LANDMARK',
+                        'landmarkIds': landmark_id,
+                        'priceMin': min_price,
+                        'priceMax': max_price,
+                        'locale': 'ru_RU',
+                        'currency': 'RUB'}
+
+        try:
+            response = self.make_request(url, query_params).json()
+        except (requests.ConnectionError, requests.Timeout) as e:
+            logger.error(f'Ошибка при отправке запроса (bestdeal): {e}')
+            raise
+        return response['data']['body']['searchResults']['results']
+
     def request_by_price(self,
                          sort_order: str,
-                         city: str,
+                         destination_id: str,
                          count: int, ) -> List[Dict[str, Any]]:
         """
         Запросить отели города с сортировкой по цене
 
-        Возвращает результаты поиска, содержащие информацию об отелях в
-        виде списка словарей
-
         :param sort_order: задает в каком порядке произойдет сортировка:
             'low' – от меньшего к большему;
             'high' – от большего к меньшему.
-        :param city: город, в котором будет произведен поиск
+        :param destination_id: destinationId города
         :param count: максимальное количество отелей, которые нужно
             получить
+        :return: результаты поиска в виде списка словарей
         :except ValueError: выбрасывается, если переданы некорректные
             значения параметров
         """
@@ -39,34 +96,29 @@ class HotelsRequester:
         if sort_order not in ('low', 'high'):
             raise ValueError('invalid value, "low" or "high" is expected')
 
-        sort_order = 'PRICE' if sort_order == 'low' else 'HIGH_PRICE'
-        destination_id = self.__search_destination(city_name=city)
+        sort_order = 'PRICE' if sort_order == 'low' else 'PRICE_HIGHEST_FIRST'
         check_in = date.today()
         check_out = check_in + timedelta(days=1)
 
-        url = "https://hotels4.p.rapidapi.com/properties/list"
-        querystring = {"destinationId": destination_id,
-                       "sortOrder": sort_order,
-                       "pageSize": count,
-                       "checkIn": check_in.strftime('%Y-%m-%d'),
-                       "checkOut": check_out.strftime('%Y-%m-%d'),
-                       "pageNumber": "1",
-                       "adults1": "1",
-                       "locale": "ru_RU",
-                       "currency": "RUB"}
-        headers = {
-            'x-rapidapi-host': "hotels4.p.rapidapi.com",
-            'x-rapidapi-key': self.__api_key
-        }
+        url = 'https://hotels4.p.rapidapi.com/properties/list'
+        query_params = {'destinationId': destination_id,
+                        'sortOrder': sort_order,
+                        'pageSize': count,
+                        'checkIn': check_in.strftime('%Y-%m-%d'),
+                        'checkOut': check_out.strftime('%Y-%m-%d'),
+                        'pageNumber': '1',
+                        'adults1': '1',
+                        'locale': 'ru_RU',
+                        'currency': 'RUB'}
 
         try:
-            response = requests.get(url, headers=headers, params=querystring).json()
+            response = self.make_request(url, query_params).json()
         except requests.RequestException as e:
-            logger.error(f'Ошибка при отправке запроса: {e}')
+            logger.error(f'Ошибка при отправке запроса (by_price): {e}')
             raise
         return response['data']['body']['searchResults']['results']
 
-    def request_photos(self, hotel_id: int) -> List[str]:
+    def request_photos(self, hotel_id: Union[str, int]) -> List[str]:
         """
         Запросить фотографии отеля
 
@@ -74,14 +126,11 @@ class HotelsRequester:
         :return: список ссылок на изображения
         """
 
-        url = "https://hotels4.p.rapidapi.com/properties/get-hotel-photos"
-        querystring = {"id": hotel_id}
-        headers = {
-            'x-rapidapi-host': "hotels4.p.rapidapi.com",
-            'x-rapidapi-key': self.__api_key
-        }
+        url = 'https://hotels4.p.rapidapi.com/properties/get-hotel-photos'
+        query_params = {'id': hotel_id}
+
         try:
-            response = requests.get(url, headers=headers, params=querystring).json()
+            response = self.make_request(url, query_params).json()
         except requests.RequestException as e:
             logger.error(f'Ошибка во время запроса фотографий: {e}')
             raise
@@ -96,7 +145,7 @@ class HotelsRequester:
 
         return result
 
-    def __search_destination(self, city_name: str) -> Optional[str]:
+    def search_destination(self, city_name: str) -> Optional[str]:
         """
         Поиск местоположения в Hotels API по названию города
 
@@ -111,17 +160,13 @@ class HotelsRequester:
         if not locale:
             raise UndefinedLocale('failed to determine locale')
 
-        url = "https://hotels4.p.rapidapi.com/locations/search"
-        querystring = {"query": city_name, "locale": locale}
-        headers = {
-            'x-rapidapi-host': "hotels4.p.rapidapi.com",
-            'x-rapidapi-key': self.__api_key
-        }
+        url = 'https://hotels4.p.rapidapi.com/locations/search'
+        query_params = {'query': city_name, 'locale': locale}
 
         try:
-            response = requests.get(url, headers=headers, params=querystring).json()
+            response = self.make_request(url, query_params).json()
         except Exception as e:
-            logger.error(f'Ошибка во время запроса destination_id: {e}')
+            logger.error(f'Ошибка во время запроса destinationId: {e}')
             raise
         try:
             return response['suggestions'][0]['entities'][0]['destinationId']

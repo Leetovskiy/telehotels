@@ -2,7 +2,7 @@ from loguru import logger
 from telebot.types import Message
 
 from loader import bot
-from .processes import ask_city_step
+from .processes import price_ask_city_step
 
 @bot.message_handler(commands=['highprice'])
 def on_highprice(msg: Message) -> None:
@@ -19,4 +19,4 @@ def on_highprice(msg: Message) -> None:
     sent_message = bot.send_message(chat_id, text)
 
     params = {'sort_order': 'high'}
-    bot.register_next_step_handler(sent_message, ask_city_step, params)
+    bot.register_next_step_handler(sent_message, price_ask_city_step, params)
