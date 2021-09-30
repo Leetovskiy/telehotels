@@ -1,4 +1,4 @@
-from loader import bot
+from src.loader import bot
 from telebot.types import Message
 from loguru import logger
 from .processes import bestdeal_ask_city_step

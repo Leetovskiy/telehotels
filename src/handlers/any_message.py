@@ -1,7 +1,7 @@
 from loguru import logger
 from telebot.types import Message
 
-from loader import bot
+from src.loader import bot
 
 
 @bot.message_handler(func=lambda x: True)
