@@ -7,7 +7,8 @@ from telebot.apihelper import ApiException
 from telebot.types import Message, InputMediaPhoto
 
 from src import utils
-from src.loader import bot, requester
+from src.loader import bot, requester, users
+from src.user import User, UserQuery
 
 REQ_PARAMS_TYPE = Dict[str, Union[str, int]]
 BUILT_MESSAGES_TYPE = List[Dict[str, Union[str, List[InputMediaPhoto]]]]
@@ -51,6 +52,7 @@ def ask_city_step(msg: Message) -> None:
         return
     params = dict()
     params['destination_id'] = destination_id
+    params['city'] = reply
 
     text = 'Введи желаемый ценовой диапазон поиска в формате "мин_цена-макс_цена".\n' \
            'Например: <code>700-1500</code>\n' \
@@ -236,7 +238,6 @@ def show_hotels(req_params: REQ_PARAMS_TYPE, chat_id: int) -> None:
 
     for message in messages:
         try:
-            status_message = bot.send_message(chat_id, 'Ожидайте…')
             if message['photos'] is not None:
                 bot.send_media_group(chat_id=chat_id, media=message['photos'])
             bot.send_message(chat_id=chat_id, text=message['text'], disable_web_page_preview=True)
@@ -245,8 +246,18 @@ def show_hotels(req_params: REQ_PARAMS_TYPE, chat_id: int) -> None:
             logger.error(f'Не удалось отправить сообщение (chat: {chat_id}): {e}')
         else:
             logger.info(f'Сообщение с результатами поиска успешно отправлено (chat: {chat_id})')
-        finally:
-            bot.delete_message(chat_id, status_message.id)
+
+    user_query = UserQuery(
+        name='bestdeal',
+        city=req_params['city'],
+        results_count=req_params['results_count'],
+        photos_count=req_params['photos_count'],
+        price_range=f'{req_params["min_price"]}-{req_params["max_price"]}',
+        distance_range=f'{req_params["min_dist"]}-{req_params["min_dist"]}'
+    )
+    if chat_id not in users:
+        users[chat_id] = User(chat_id)
+    users[chat_id].append_to_history(user_query)
 
 
 def build_messages(response: dict,

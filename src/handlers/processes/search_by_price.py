@@ -6,8 +6,8 @@ from telebot.types import Message, InputMediaPhoto
 from telebot.apihelper import ApiException
 
 from src import utils
-from src.loader import bot
-from src.loader import requester
+from src.loader import bot, requester, users
+from src.user import User, UserQuery
 
 REQ_PARAMS_TYPE = Dict[str, Union[str, int]]
 BUILT_MESSAGES_TYPE = List[Dict[str, Union[str, List[InputMediaPhoto]]]]
@@ -50,6 +50,7 @@ def ask_city_step(msg: Message, params: REQ_PARAMS_TYPE) -> None:
         bot.register_next_step_handler(error_message, ask_city_step)
         return
     params['destination_id'] = destination_id
+    params['city'] = reply
 
     text = 'Я могу вывести до 5-ти отелей. Сколько ты хочешь увидеть?'
     sent_message = bot.send_message(chat_id, text)
@@ -145,7 +146,6 @@ def show_hotels(req_params: REQ_PARAMS_TYPE, chat_id: int) -> None:
 
     for message in messages:
         try:
-            status_message = bot.send_message(chat_id, 'Ожидайте…')
             if message['photos'] is not None:
                 bot.send_media_group(chat_id=chat_id, media=message['photos'])
             bot.send_message(chat_id=chat_id, text=message['text'], disable_web_page_preview=True)
@@ -154,8 +154,16 @@ def show_hotels(req_params: REQ_PARAMS_TYPE, chat_id: int) -> None:
             logger.error(f'Не удалось отправить сообщение (chat: {chat_id}): {e}')
         else:
             logger.info(f'Сообщение с результатами поиска успешно отправлено (chat: {chat_id})')
-        finally:
-            bot.delete_message(chat_id, status_message.id)
+
+    user_query = UserQuery(
+        name=f'{req_params["sort_order"]}price',
+        city=req_params['city'],
+        results_count=req_params['results_count'],
+        photos_count=req_params['photos_count'],
+    )
+    if chat_id not in users:
+        users[chat_id] = User(chat_id)
+    users[chat_id].append_to_history(user_query)
 
 
 def build_messages(response: dict,

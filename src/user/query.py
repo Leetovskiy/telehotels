@@ -27,10 +27,8 @@ class UserQuery:
         self.city = city
         self.results_count = results_count
         self.photos_count = photos_count
-        if price_range:
-            self.price_range = price_range
-        if distance_range:
-            self.distance_range = distance_range
+        self.price_range = price_range
+        self.distance_range = distance_range
 
     def __str__(self) -> str:
         string = f'Запрос {self.name}: {self.city}; кол-во – {self.results_count}; фото – {self.photos_count}'
@@ -89,7 +87,7 @@ class UserQuery:
 
     @price_range.setter
     def price_range(self, value: str) -> None:
-        if not isinstance(value, str):
+        if not isinstance(value, str) and value is not None:
             raise TypeError('price_range must be a string')
 
         self._price_range = value
@@ -100,7 +98,7 @@ class UserQuery:
 
     @distance_range.setter
     def distance_range(self, value: str) -> None:
-        if not isinstance(value, str):
+        if not isinstance(value, str) and value is not None:
             raise TypeError('distance_range must be a string')
 
         self._distance_range = value

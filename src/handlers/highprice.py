@@ -4,6 +4,7 @@ from telebot.types import Message
 from src.loader import bot
 from .processes import price_ask_city_step
 
+
 @bot.message_handler(commands=['highprice'])
 def on_highprice(msg: Message) -> None:
     """Обработчик команды `/highprice`"""
