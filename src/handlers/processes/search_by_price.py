@@ -142,6 +142,13 @@ def show_hotels(req_params: REQ_PARAMS_TYPE, chat_id: int) -> None:
     else:
         bot.delete_message(chat_id, status_message.id)
         logger.info('Запрос успешно выполнен')
+
+    if not search_results:
+        text = f'По твоему запросу ничего не найдено.\n' \
+               f'Попробуй указать другие параметры поиска: /bestdeal'
+        bot.send_message(chat_id, text)
+        return
+
     messages = build_messages(search_results, req_params['photos_count'])
 
     for message in messages:
