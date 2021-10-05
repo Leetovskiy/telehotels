@@ -4,7 +4,7 @@ from typing import Optional, Dict, List, Any, Union
 import requests
 from loguru import logger
 
-from utils.locale_from_string import locale_from_string
+from src.utils.locale_from_string import locale_from_string
 from .exceptions import UndefinedLocale
 
 
