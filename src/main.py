@@ -6,7 +6,7 @@ from src.loader import bot
 
 if __name__ == '__main__':
     try:
-        bot.polling(non_stop=True, interval=1)
+        bot.polling(non_stop=True, interval=5)
     except (ConnectionError, Timeout) as e:
         logger.error(f'Ошибка соединения во время поллинга: {e}')
     finally:

@@ -7,8 +7,7 @@ from telebot.apihelper import ApiException
 from telebot.types import Message, InputMediaPhoto
 
 from src import utils
-from src.loader import bot, requester, users
-from src.user import User, UserQuery
+from src.loader import bot, requester, database
 
 REQ_PARAMS_TYPE = Dict[str, Union[str, int]]
 BUILT_MESSAGES_TYPE = List[Dict[str, Union[str, List[InputMediaPhoto]]]]
@@ -18,9 +17,9 @@ def ask_city_step(msg: Message) -> None:
     """
     Запросить город поиска у пользователя
 
-    :param msg: обрабатываемое сообщение
+    Args:
+        msg: обрабатываемое сообщение
     """
-
     chat_id = msg.chat.id
     reply = msg.text
 
@@ -65,10 +64,10 @@ def ask_price_range_step(msg: Message, params: REQ_PARAMS_TYPE) -> None:
     """
     Запросить диапазон цен у пользователя
 
-    :param msg: обрабатываемое сообщение
-    :param params: параметры запроса
+    Args:
+        msg: обрабатываемое сообщение
+        params: параметры запроса
     """
-
     chat_id = msg.chat.id
     reply = msg.text
 
@@ -105,10 +104,10 @@ def ask_distance_range_step(msg: Message, params: REQ_PARAMS_TYPE) -> None:
     """
     Запросить диапазон отдаленности отеля от центра
 
-    :param msg: обрабатываемое сообщение
-    :param params: параметры запроса
+    Args:
+        msg: обрабатываемое сообщение
+        params: параметры запроса
     """
-
     chat_id = msg.chat.id
     reply = msg.text
 
@@ -144,10 +143,10 @@ def ask_count_step(msg: Message, params: REQ_PARAMS_TYPE) -> None:
     """
     Запросить количество отелей для поиска
 
-    :param msg: обрабатываемое сообщение
-    :param params: параметры, которые будут переданы в функцию запроса
+    Args:
+        msg: обрабатываемое сообщение
+        params: параметры запроса
     """
-
     chat_id = msg.chat.id
     reply = msg.text
 
@@ -177,10 +176,10 @@ def ask_photos_step(msg: Message, params: REQ_PARAMS_TYPE) -> None:
     """
     Запросить количество фото
 
-    :param msg: обрабатываемое сообщение
-    :param params: параметры для поискового запроса
+    Args:
+        msg: обрабатываемое сообщение
+        params: параметры запроса
     """
-
     chat_id = msg.chat.id
     reply = msg.text
 
@@ -207,10 +206,10 @@ def show_hotels(req_params: REQ_PARAMS_TYPE, chat_id: int) -> None:
     """
     Показать результаты поиска пользователю
 
-    :param req_params: параметры запроса
-    :param chat_id: идентификатор чата
+    Args:
+        req_params: параметры запроса
+        chat_id: идентификатор чата
     """
-
     status_message = bot.send_message(chat_id, 'Поиск…')
     try:
         logger.info(f'Отправка поискового запроса отеля для {chat_id}')
@@ -247,17 +246,7 @@ def show_hotels(req_params: REQ_PARAMS_TYPE, chat_id: int) -> None:
         else:
             logger.info(f'Сообщение с результатами поиска успешно отправлено (chat: {chat_id})')
 
-    user_query = UserQuery(
-        name='bestdeal',
-        city=req_params['city'],
-        results_count=req_params['results_count'],
-        photos_count=req_params['photos_count'],
-        price_range=f'{req_params["min_price"]}-{req_params["max_price"]}',
-        distance_range=f'{req_params["min_dist"]}-{req_params["min_dist"]}'
-    )
-    if chat_id not in users:
-        users[chat_id] = User(chat_id)
-    users[chat_id].append_to_history(user_query)
+    database.add_to_history(user_id=chat_id, command='bestdeal', city=req_params['city'])
 
 
 def build_messages(response: dict,
@@ -265,15 +254,16 @@ def build_messages(response: dict,
     """
     Собрать сообщения из результатов запроса поиска отелей
 
-    Принимает ответ запроса поиска отелей и количество фото (если
+    Принимает список результатов поиска и количество фото (если
     требуется), формирует из них список словарей с текстом и
     списком InputMediaPhoto для отправки.
 
-    :param response: результат запроса к API
-    :param photos_count: количество фото, прикрепляемых к сообщению,
-        если требуется
-    :return: список словарей, содержащих текст сообщения и список
-        InputMediaPhoto, если фото требуются
+    Args:
+        response: результат запроса к API
+        photos_count: количество фото, прикрепляемых к сообщению
+
+    Returns:
+        Список сообщений для отправки
     """
 
     messages = []
@@ -302,13 +292,10 @@ def build_messages(response: dict,
         photos = None
         if photos_count:
             try:
-                logger.info('Отправка запроса фотографий')
                 photo_results = requester.request_photos(elem['id'])
             except (requests.ConnectionError, requests.Timeout) as e:
                 logger.error(f'Ошибка при запросе фотографий: {e}')
                 continue
-            else:
-                logger.info('Запрос успешно выполнен')
 
             if len(photo_results) > photos_count:
                 photo_results = photo_results[:photos_count]

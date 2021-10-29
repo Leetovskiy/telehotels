@@ -1,9 +1,9 @@
+from sqlite3 import OperationalError
+
 from loguru import logger
 from telebot.types import Message
 
-from src.loader import bot
-from src.loader import users
-from src.user.user import User
+from src.loader import bot, database
 
 
 @bot.message_handler(commands=['start'])
@@ -16,8 +16,10 @@ def on_start(msg: Message) -> None:
     chat_id = msg.chat.id
     text = 'Привет! Я TeleHotels Bot и могу помочь тебе подобрать отель на Hotels.com\n' \
            'Чтобы ознакомиться с тем, что я умею используй команду /help'
-
-    if chat_id not in users:
-        users[chat_id] = User(chat_id)
-
     bot.send_message(chat_id, text)
+
+    try:
+        database.add_user(user_id=sender.id, username=sender.username)
+    except OperationalError as e:
+        log_text = f'Не удалось добавить пользователя в БД: {e}'
+        logger.error(log_text)

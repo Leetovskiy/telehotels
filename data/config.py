@@ -11,3 +11,4 @@ if 'RAPID_API_KEY' not in os.environ:
 
 BOT_TOKEN = os.getenv('TG_BOT_TOKEN')
 API_KEY = os.getenv('RAPID_API_KEY')
+DATABASE_PATH = os.getenv('DATABASE_PATH')
