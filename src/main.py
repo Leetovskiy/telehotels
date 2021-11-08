@@ -1,13 +1,15 @@
-from loguru import logger
-from requests import ConnectionError, Timeout
+from aiohttp import web
 
 import src.handlers
-from src.loader import bot
+from data.config import WEBHOOK_URL
+from src.loader import bot, app
 
 if __name__ == '__main__':
-    try:
-        bot.polling(non_stop=True, interval=1)
-    except (ConnectionError, Timeout) as e:
-        logger.error(f'Ошибка соединения во время поллинга: {e}')
-    finally:
-        bot.close()
+    bot.delete_webhook()
+    bot.set_webhook(url=WEBHOOK_URL)
+
+    web.run_app(
+        app,
+        host='0.0.0.0',
+        port=8443
+    )
