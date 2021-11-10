@@ -160,14 +160,11 @@ class HotelsRequester:
         if not locale:
             raise UndefinedLocale('failed to determine locale')
 
-        url = 'https://hotels4.p.rapidapi.com/locations/search'
+        url = 'https://hotels4.p.rapidapi.com/locations/v2/search'
         query_params = {'query': city_name, 'locale': locale}
 
-        try:
-            response = self.make_request(url, query_params).json()
-        except Exception as e:
-            logger.error(f'Ошибка во время запроса destinationId: {e}')
-            raise
+        response = self.make_request(url, query_params)
+        response = response.json()
         try:
             return response['suggestions'][0]['entities'][0]['destinationId']
         except (KeyError, IndexError):
