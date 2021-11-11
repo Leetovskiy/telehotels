@@ -1,13 +1,13 @@
-from typing import Dict, Union, Optional, List
+from typing import Dict, Union, List
 
 import requests
 from loguru import logger
-from telebot.types import Message, InputMediaPhoto
 from telebot.apihelper import ApiException
+from telebot.types import Message, InputMediaPhoto
 
 from src import utils
-from src.loader import bot, requester, users
-from src.user import User, UserQuery
+from src.handlers.processes.search_best_deal import build_messages
+from src.loader import bot, requester, database
 
 REQ_PARAMS_TYPE = Dict[str, Union[str, int]]
 BUILT_MESSAGES_TYPE = List[Dict[str, Union[str, List[InputMediaPhoto]]]]
@@ -17,8 +17,9 @@ def ask_city_step(msg: Message, params: REQ_PARAMS_TYPE) -> None:
     """
     Запросить город поиска у пользователя
 
-    :param msg: обрабатываемое сообщение
-    :param params: параметры, которые будут переданы в функцию запроса
+    Args:
+        msg: обрабатываемое сообщение
+        params: параметры запроса
     """
     chat_id = msg.chat.id
     reply = msg.text
@@ -61,10 +62,10 @@ def ask_count_step(msg: Message, params: REQ_PARAMS_TYPE) -> None:
     """
     Запросить количество отелей для поиска
 
-    :param msg: обрабатываемое сообщение
-    :param params: параметры, которые будут переданы в функцию запроса
+    Args:
+        msg: обрабатываемое сообщение
+        params: параметры запроса
     """
-
     chat_id = msg.chat.id
     reply = msg.text
 
@@ -94,10 +95,10 @@ def ask_photos_step(msg: Message, params: REQ_PARAMS_TYPE) -> None:
     """
     Запросить количество фото
 
-    :param msg: обрабатываемое сообщение
-    :param params: параметры для поискового запроса
+    Args:
+        msg: обрабатываемое сообщение
+        params: параметры запроса
     """
-
     chat_id = msg.chat.id
     reply = msg.text
 
@@ -124,8 +125,9 @@ def show_hotels(req_params: REQ_PARAMS_TYPE, chat_id: int) -> None:
     """
     Показать результаты поиска пользователю
 
-    :param req_params: параметры запроса
-    :param chat_id: идентификатор чата
+    Args:
+        req_params: параметры запроса
+        chat_id: идентификатор чата
     """
 
     status_message = bot.send_message(chat_id, 'Поиск…')
@@ -162,72 +164,5 @@ def show_hotels(req_params: REQ_PARAMS_TYPE, chat_id: int) -> None:
         else:
             logger.info(f'Сообщение с результатами поиска успешно отправлено (chat: {chat_id})')
 
-    user_query = UserQuery(
-        name=f'{req_params["sort_order"]}price',
-        city=req_params['city'],
-        results_count=req_params['results_count'],
-        photos_count=req_params['photos_count'],
-    )
-    if chat_id not in users:
-        users[chat_id] = User(chat_id)
-    users[chat_id].append_to_history(user_query)
-
-
-def build_messages(response: dict,
-                   photos_count: Optional[int]) -> BUILT_MESSAGES_TYPE:
-    """
-    Собрать сообщения из результатов запроса поиска отелей
-
-    Принимает ответ запроса поиска отелей и количество фото (если
-    требуется), формирует из них список словарей с текстом и
-    списком InputMediaPhoto для отправки.
-
-    :param response: результат запроса к API
-    :param photos_count: количество фото, прикрепляемых к сообщению,
-        если требуется
-    :return: список словарей, содержащих текст сообщения и список
-        InputMediaPhoto, если фото требуются
-    """
-
-    messages = []
-    for elem in response:
-        name = elem['name']
-        address = ', '.join((elem['address']['streetAddress'],
-                             elem['address']['locality'],
-                             elem['address']['countryName']))
-        price = elem['ratePlan']['price']['current']
-        for landmark in elem['landmarks']:
-            if landmark['label'] in ('Центр города', 'City center'):
-                center_remoteness = landmark['distance']
-                break
-        else:
-            center_remoteness = 'не найдено'
-        link = f'https://ru.hotels.com/ho{elem["id"]}'
-
-        message_text = '\n'.join((
-            f'<b>{name}</b>',
-            f'🏢 <b>Адрес:</b> {address}',
-            f'🎯 <b>От центра города:</b> {center_remoteness}',
-            f'💲 <b>Цена:</b> {price}/сутки',
-            f'🔗 <a href="{link}">Больше информации на сайте</a>'
-        ))
-
-        photos = None
-        if photos_count:
-            try:
-                logger.info('Отправка запроса фотографий')
-                photo_results = requester.request_photos(elem['id'])
-            except (requests.ConnectionError, requests.Timeout) as e:
-                logger.error(f'Ошибка при запросе фотографий: {e}')
-                continue
-            else:
-                logger.info('Запрос успешно выполнен')
-
-            if len(photo_results) > photos_count:
-                photo_results = photo_results[:photos_count]
-
-            photos = [InputMediaPhoto(media=link, caption=name)
-                      for link in photo_results]
-
-        messages.append({'text': message_text, 'photos': photos})
-    return messages
+    command = f'{req_params["sort_order"]}price'
+    database.add_to_history(user_id=chat_id, command=command, city=req_params['city'])

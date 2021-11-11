@@ -14,7 +14,7 @@ class HotelsRequester:
     """
 
     def __init__(self, api_key: str):
-        self.__api_key = api_key
+        self.__api_key: str = api_key
 
     def make_request(self,
                      url: str,
@@ -22,11 +22,13 @@ class HotelsRequester:
         """
         Отправить get-запрос к Hotels.com
 
-        :param url: целевой URL-адрес
-        :param params: параметры запроса
-        :return: ответ сервера
-        """
+        Args:
+            url: целевой URL-адрес
+            params: параметры запроса
 
+        Returns:
+            Объект Response
+        """
         headers = {
             'x-rapidapi-host': 'hotels4.p.rapidapi.com',
             'x-rapidapi-key': self.__api_key
@@ -34,22 +36,24 @@ class HotelsRequester:
 
         response = requests.get(url, headers=headers, params=params)
         return response
-    
+
     def request_bestdeal(self,
                          destination_id: str,
                          count: int,
                          min_price: int,
                          max_price: int) -> List[Dict[str, Any]]:
         """
-        Запросить ближайшие к центру отели в определенном диапазоне цен
+        Сделать запрос на ближайшие к центру отели в определенном диапазоне цен
 
-        :param destination_id: destinationId города
-        :param count: количество отелей в результате
-        :param min_price: мин. значение диапазона
-        :param max_price: макс. значение диапазона
-        :return: результаты поиска в виде списка словарей
+        Args:
+            destination_id: destinationId города
+            count: количество отелей в результате
+            min_price: мин. значение диапазона цены
+            max_price: макс. значение диапазона цены
+
+        Returns:
+            Результат запроса в виде списка словарей
         """
-
         landmark_id = destination_id
         check_in = date.today()
         check_out = check_in + timedelta(days=1)
@@ -82,17 +86,17 @@ class HotelsRequester:
         """
         Запросить отели города с сортировкой по цене
 
-        :param sort_order: задает в каком порядке произойдет сортировка:
-            'low' – от меньшего к большему;
-            'high' – от большего к меньшему.
-        :param destination_id: destinationId города
-        :param count: максимальное количество отелей, которые нужно
-            получить
-        :return: результаты поиска в виде списка словарей
-        :except ValueError: выбрасывается, если переданы некорректные
-            значения параметров
-        """
+        Args:
+            sort_order: порядок сортировки. "low" – от меньшего к большему; "high" – от большего к меньшему
+            destination_id: destinationId города
+            count: количество отелей в результате
 
+        Returns:
+            Результат запроса в виде списка словарей
+
+        Raises:
+            ValueError: если в sort_order передано некорректное значение
+        """
         if sort_order not in ('low', 'high'):
             raise ValueError('invalid value, "low" or "high" is expected')
 
@@ -122,10 +126,12 @@ class HotelsRequester:
         """
         Запросить фотографии отеля
 
-        :param hotel_id: идентификатор отеля
-        :return: список ссылок на изображения
-        """
+        Args:
+            hotel_id: идентификатор отеля
 
+        Returns:
+            Результат запроса (список с ссылками на изображения)
+        """
         url = 'https://hotels4.p.rapidapi.com/properties/get-hotel-photos'
         query_params = {'id': hotel_id}
 
@@ -149,13 +155,15 @@ class HotelsRequester:
         """
         Поиск местоположения в Hotels API по названию города
 
-        :param city_name: название города в свободном формате
-        :return: destinationId или None, если местоположение не было
-            найдено
-        :except UndefinedLocale: выбрасывается, если не удалось
-            определить локаль строки с наименованием города
-        """
+        Args:
+            :param city_name: название города в свободном формате
 
+        Returns:
+            destinationId (str) или None, если местоположение не было найдено
+
+        Raises:
+            UndefinedLocale: если не удалось определить локаль строки с наименованием города
+        """
         locale = locale_from_string(city_name)
         if not locale:
             raise UndefinedLocale('failed to determine locale')
@@ -163,8 +171,7 @@ class HotelsRequester:
         url = 'https://hotels4.p.rapidapi.com/locations/v2/search'
         query_params = {'query': city_name, 'locale': locale}
 
-        response = self.make_request(url, query_params)
-        response = response.json()
+        response = self.make_request(url, query_params).json()
         try:
             return response['suggestions'][0]['entities'][0]['destinationId']
         except (KeyError, IndexError):
