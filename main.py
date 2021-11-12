@@ -22,4 +22,4 @@ if __name__ == '__main__':
         )
     else:
         logger.info('Запуск бота (Polling-метод)')
-        bot.polling(interval=5)
+        bot.infinity_polling(interval=5)
