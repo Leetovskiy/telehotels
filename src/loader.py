@@ -1,3 +1,5 @@
+from sys import argv
+
 from aiohttp import web
 from telebot import TeleBot
 from telebot.types import Update
@@ -15,12 +17,12 @@ database.create_users_table()
 database.create_history_table()
 
 
-async def webhook_handle(request):
-    request_body_dict = await request.json()
-    update = Update.de_json(request_body_dict)
-    bot.process_new_updates([update])
-    return web.Response()
+if '--webhook' in argv[1:]:
+    async def webhook_handle(request):
+        request_body_dict = await request.json()
+        update = Update.de_json(request_body_dict)
+        bot.process_new_updates([update])
+        return web.Response()
 
-
-app = web.Application()
-app.router.add_post(f'/{config.URL_SECRET}', webhook_handle)
+    app = web.Application()
+    app.router.add_post(f'/{config.URL_SECRET}', webhook_handle)
